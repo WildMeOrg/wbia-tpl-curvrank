@@ -4,9 +4,9 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-from lasagne.updates import nesterov_momentum
-from lasagne.layers import get_all_params
-from lasagne.layers import get_output
+from Lasagne.lasagne.updates import nesterov_momentum
+from Lasagne.lasagne.layers import get_all_params
+from Lasagne.lasagne.layers import get_output
 
 
 def create_localization_train_func(layers, lr=0.01, mntm=0.9):

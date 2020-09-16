@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 import numpy as np
-from lasagne.layers import get_all_params
-from lasagne.layers import count_params
-from lasagne.layers import get_all_layers
+from Lasagne.lasagne.layers import get_all_params
+from Lasagne.lasagne.layers import count_params
+from Lasagne.lasagne.layers import get_all_layers
 import six
 
 if six.PY2:

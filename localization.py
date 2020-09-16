@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 import numpy as np
-from lasagne.layers import batch_norm
-from lasagne.layers import Conv2DLayer
-from lasagne.layers import DenseLayer
+from Lasagne.lasagne.layers import batch_norm
+from Lasagne.lasagne.layers import Conv2DLayer
+from Lasagne.lasagne.layers import DenseLayer
 
-# from lasagne.layers import DropoutLayer
-from lasagne.layers import InputLayer
-from lasagne.layers import Pool2DLayer
-from lasagne.layers import TransformerLayer
-from lasagne.layers import get_all_layers
+# from Lasagne.lasagne.layers import DropoutLayer
+from Lasagne.lasagne.layers import InputLayer
+from Lasagne.lasagne.layers import Pool2DLayer
+from Lasagne.lasagne.layers import TransformerLayer
+from Lasagne.lasagne.layers import get_all_layers
 
-from lasagne.nonlinearities import rectify, linear
-from lasagne.init import Constant
-from lasagne.init import Orthogonal
+from Lasagne.lasagne.nonlinearities import rectify, linear
+from Lasagne.lasagne.init import Constant
+from Lasagne.lasagne.init import Orthogonal
 
 
 def build_model(input_shape, downsample=1):
