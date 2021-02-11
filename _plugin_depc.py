@@ -1547,59 +1547,11 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
 class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     _symmetric = False
 
-    def overlay_trailing_edge(
-        request, chip, outline, trailing_edge, edge_color=(0, 255, 255)
-    ):
-        import cv2
-
-        scale = request.config.curvrank_scale
-
-        chip_ = np.copy(chip)
-        chip_ = cv2.resize(chip_, dsize=None, fx=scale, fy=scale)
-        h, w = chip_.shape[:2]
-
-        if outline is not None:
-            for y, x in outline:
-                if x < 0 or w < x or y < 0 or h < y:
-                    continue
-                cv2.circle(chip_, (x, y), 5, (255, 0, 0), thickness=-1)
-
-        if trailing_edge is not None:
-            for y, x in trailing_edge:
-                if x < 0 or w < x or y < 0 or h < y:
-                    continue
-                cv2.circle(chip_, (x, y), 2, edge_color, thickness=-1)
-
-        return chip_
-
     @ut.accepts_scalar_input
     def get_fmatch_overlayed_chip(request, aid_list, overlay=True, config=None):
         depc = request.depc
-
-        chips = depc.get('localization', aid_list, 'localized_img', config=request.config)
-        outlines = [None] * len(chips)
-        trailing_edges = [None] * len(chips)
-
-        model_type = request.config.curvrank_model_type
-        if model_type in ['dorsalfinfindrhybrid']:
-            chips = depc.get(
-                'localization',
-                aid_list,
-                'localized_img',
-                config=DEFAULT_DORSAL_TEST_CONFIG,
-            )
-
-        if overlay:
-            if model_type not in ['dorsalfinfindrhybrid']:
-                outlines = depc.get('outline', aid_list, 'outline', config=request.config)
-            trailing_edges = depc.get(
-                'trailing_edge', aid_list, 'trailing_edge', config=request.config
-            )
-
-        overlay_chips = [
-            request.overlay_trailing_edge(chip, outline, trailing_edge)
-            for chip, outline, trailing_edge in zip(chips, outlines, trailing_edges)
-        ]
+        ibs = depc.controller
+        overlay_chips = ibs.wbia_plugin_curvrank_get_fmatch_overlayed_chip(aid_list, request.config, overlay=overlay)
         return overlay_chips
 
     def render_single_result(request, cm, aid, **kwargs):

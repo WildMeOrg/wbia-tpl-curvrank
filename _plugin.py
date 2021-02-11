@@ -17,6 +17,7 @@ import cv2
 import wbia_curvrank._plugin_depc  # NOQA
 from wbia_curvrank._plugin_depc import (
     DEFAULT_SCALES,
+    DEFAULT_SCALE,
     INDEX_NUM_TREES,
     INDEX_SEARCH_K,
     INDEX_LNBNN_K,
@@ -1970,7 +1971,160 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     values = ibs.wbia_plugin_curvrank_curvature_descriptors(success, curvatures, **config)
     success, curvature_descriptors = values
 
+    chip_dict = dict(zip(aid_list, localized_images))
+    outline_dict = dict(zip(aid_list, outlines))
+    trailing_edge_dict = dict(zip(aid_list, trailing_edges))
+    ibs.wbia_plugin_curvrank_get_fmatch_overlayed_chip(
+        aid_list,
+        config,
+        overlay=True,
+        chip_dict=chip_dict,
+        outline_dict=outline_dict,
+        trailing_edge_dict=trailing_edge_dict
+    )
     return success, curvature_descriptors
+
+
+def wbia_plugin_curvrank_overlay_trailing_edge(
+    chip, scale, output_path, outline, trailing_edge, edge_color=(0, 255, 255)
+):
+    try:
+        chip = np.copy(chip)
+        chip = cv2.resize(chip, dsize=None, fx=scale, fy=scale)
+        h, w = chip.shape[:2]
+
+        # Speed-up Hack
+        if 'overlay_True' in output_path:
+            output_path_ = output_path.replace('overlay_True', 'overlay_False')
+            cv2.imwrite(output_path_, chip)
+
+        if outline is not None:
+            for y, x in outline:
+                if x < 0 or w < x or y < 0 or h < y:
+                    continue
+                cv2.circle(chip, (x, y), 5, (255, 0, 0), thickness=-1)
+
+        if trailing_edge is not None:
+            for y, x in trailing_edge:
+                if x < 0 or w < x or y < 0 or h < y:
+                    continue
+                cv2.circle(chip, (x, y), 2, edge_color, thickness=-1)
+
+        cv2.imwrite(output_path, chip)
+    except:
+        pass
+    return exists(output_path)
+
+    # return chip_
+
+
+@register_ibs_method
+def wbia_plugin_curvrank_get_fmatch_overlayed_chip(ibs, aid_list, config, overlay=True, chip_dict={}, outline_dict={}, trailing_edge_dict={}):
+
+    cache_path = join(ibs.cachedir, 'curvrank_chips')
+    ut.ensuredir(cache_path)
+
+    cache_filepaths = []
+    flag_list = []
+    for aid in aid_list:
+        cache_filename = 'curvrank_aid_%d_config_latest_overlay_%s.jpg' % (aid, overlay, )
+        cache_filepath = join(cache_path, cache_filename)
+        flag_list.append(not exists(cache_filepath))
+        cache_filepaths.append(cache_filepath)
+
+    missing_aid_list = ut.compress(aid_list, flag_list)
+    missing_cache_filepaths = ut.compress(cache_filepaths, flag_list)
+
+    if len(missing_aid_list) > 0:
+        depc = ibs.depc_annot
+
+        if isinstance(config, dict):
+            scale = config.get('scale', DEFAULT_SCALE['dorsal'])
+        else:
+            scale = config.curvrank_scale
+
+        flags = []
+        for missing_aid in missing_aid_list:
+            flag = missing_aid not in chip_dict
+            flags.append(flag)
+        dirty_aid_list = ut.compress(missing_aid_list, flags)
+        chips = depc.get('localization', dirty_aid_list, 'localized_img', config=config)
+        for dirty_aid, chip in zip(dirty_aid_list, chips):
+            chip_dict[dirty_aid] = chip
+
+        flags = []
+        for missing_aid in missing_aid_list:
+            flag = overlay and missing_aid not in outline_dict
+            flags.append(flag)
+        dirty_aid_list = ut.compress(missing_aid_list, flags)
+        outlines = depc.get('outline', dirty_aid_list, 'outline', config=config)
+        for dirty_aid, outline in zip(dirty_aid_list, outlines):
+            outline_dict[dirty_aid] = outline
+
+        flags = []
+        for missing_aid in missing_aid_list:
+            flag = overlay and missing_aid not in trailing_edge_dict
+            flags.append(flag)
+        dirty_aid_list = ut.compress(missing_aid_list, flags)
+        trailing_edges = depc.get('trailing_edge', dirty_aid_list, 'trailing_edge', config=config)
+        for dirty_aid, trailing_edge in zip(dirty_aid_list, trailing_edges):
+            trailing_edge_dict[dirty_aid] = trailing_edge
+
+        arg_iter = []
+        for missing_aid, mising_cache_filepath in zip(missing_aid_list, missing_cache_filepaths):
+            chip = chip_dict[missing_aid]
+            outline = outline_dict.get(missing_aid, None)
+            trailing_edge = trailing_edge_dict.get(missing_aid, None)
+            arg = chip, scale, mising_cache_filepath, outline, trailing_edge
+            arg_iter.append(arg)
+
+        nTasks = len(arg_iter)
+        result_list = ut.util_parallel.generate2(
+            wbia_plugin_curvrank_overlay_trailing_edge,
+            arg_iter,
+            nTasks=nTasks,
+            force_serial=ibs.force_serial,
+            futures_threaded=True,
+        )
+        result_list = list(result_list)
+        assert np.all(result_list)
+
+    overlay_chips = []
+    for cache_filepath in cache_filepaths:
+        overlay_chip = cv2.imread(cache_filepath)
+        overlay_chips.append(overlay_chip)
+
+    return overlay_chips
+
+
+# def wbia_plugin_curvrank_get_fmatch_overlayed_chip(request, aid_list, overlay=True, config=None):
+#     depc = request.depc
+
+#     chips = depc.get('localization', aid_list, 'localized_img', config=request.config)
+#     outlines = [None] * len(chips)
+#     trailing_edges = [None] * len(chips)
+
+#     model_type = request.config.curvrank_model_type
+#     if model_type in ['dorsalfinfindrhybrid']:
+#         chips = depc.get(
+#             'localization',
+#             aid_list,
+#             'localized_img',
+#             config=DEFAULT_DORSAL_TEST_CONFIG,
+#         )
+
+#     if overlay:
+#         if model_type not in ['dorsalfinfindrhybrid']:
+#             outlines = depc.get('outline', aid_list, 'outline', config=request.config)
+#         trailing_edges = depc.get(
+#             'trailing_edge', aid_list, 'trailing_edge', config=request.config
+#         )
+
+#     overlay_chips = [
+#         request.overlay_trailing_edge(chip, outline, trailing_edge)
+#         for chip, outline, trailing_edge in zip(chips, outlines, trailing_edges)
+#     ]
+#     return overlay_chips
 
 
 @register_ibs_method
