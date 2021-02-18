@@ -2020,7 +2020,7 @@ def wbia_plugin_curvrank_overlay_trailing_edge(
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_get_fmatch_overlayed_chip(ibs, aid_list, depc_config, overlay=True, chip_dict={}, outline_dict={}, trailing_edge_dict={}):
+def wbia_plugin_curvrank_get_fmatch_overlayed_chip(ibs, aid_list, depc_config, overlay=True, chip_dict={}, outline_dict={}, trailing_edge_dict={}, read_extern=True):
 
     cache_path = join(ibs.cachedir, 'curvrank_chips')
     ut.ensuredir(cache_path)
@@ -2089,9 +2089,10 @@ def wbia_plugin_curvrank_get_fmatch_overlayed_chip(ibs, aid_list, depc_config, o
         assert np.all(result_list)
 
     overlay_chips = []
-    for cache_filepath in cache_filepaths:
-        overlay_chip = cv2.imread(cache_filepath)
-        overlay_chips.append(overlay_chip)
+    if read_extern:
+        for cache_filepath in cache_filepaths:
+            overlay_chip = cv2.imread(cache_filepath)
+            overlay_chips.append(overlay_chip)
 
     return overlay_chips
 
