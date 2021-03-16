@@ -1566,16 +1566,17 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         out_img = vt.stack_image_list(chips)
         return out_img
 
-    def postprocess_execute(request, parent_rowids, result_list):
+    def postprocess_execute(request, table, parent_rowids, rowids, result_list):
         qaid_list, daid_list = list(zip(*parent_rowids))
         score_list = ut.take_column(result_list, 0)
         depc = request.depc
         config = request.config
         cm_list = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
+        table.delete_rows(rowids)
         return cm_list
 
     def execute(request, *args, **kwargs):
-        kwargs['use_cache'] = False
+        # kwargs['use_cache'] = False
         result_list = super(CurvRankRequest, request).execute(*args, **kwargs)
         qaids = kwargs.pop('qaids', None)
         if qaids is not None:
